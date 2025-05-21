@@ -54,12 +54,15 @@ class Artikel extends BaseController
     $title = 'Daftar Artikel';
     $q = $this->request->getVar('q') ?? '';
     $models = new ArtikelModel();
+    $kategori_id = $this->request->getVar('kategori_id') ?? '';
     $data = [
       'title' => $title,
       'q' => $q,
       'artikel' => $models->like('judul', $q)->paginate(2),
       'pager' => $models->pager,
+      'kategori_id' => $kategori_id,
     ];
+    $builder = $models->table('artikel');
     return view('artikel/admin_index', $data);
   }
 
