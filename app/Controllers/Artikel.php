@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ArtikelModel;
+use App\Models\KategoriModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Artikel extends BaseController
@@ -11,26 +12,20 @@ class Artikel extends BaseController
   {
     $title = 'Daftar Artikel';
     $models = new ArtikelModel();
-    $artikel = $models->findAll();
+    $artikel = $models->getArtikelDenganKategori();
     return view('artikel/index', compact('artikel', 'title'));
   }
   public function view($slug)
   {
-
-    $models = new ArtikelModel();
-    $artikel = $models->where([
-      'slug' => $slug
-    ])->first();
-    if ($this->request->isAJAX()) {
-      return view('artikel/detail', ['artikel' => $artikel]);
+    $model = new ArtikelModel();
+    $data['artikel'] = $model->where('slug', $slug)->first();
+    if (empty($data['artikel'])) {
+      throw new \CodeIgniter\Exceptions\PageNotFoundException('Cannot find the article.');
     }
-
-    if (!$artikel) {
-      throw PageNotFoundException::forPageNotFound();
-    }
-    $title = $artikel['judul'];
-    return view('artikel/detail', compact('artikel', 'title'));
+    $data['title'] = $data['artikel']['judul'];
+    return view('artikel/detail', $data);
   }
+
   public function adminview($slug)
   {
 
@@ -55,6 +50,7 @@ class Artikel extends BaseController
     $q = $this->request->getVar('q') ?? '';
     $models = new ArtikelModel();
     $kategori_id = $this->request->getVar('kategori_id') ?? '';
+
     $data = [
       'title' => $title,
       'q' => $q,
@@ -62,51 +58,69 @@ class Artikel extends BaseController
       'pager' => $models->pager,
       'kategori_id' => $kategori_id,
     ];
-    $builder = $models->table('artikel');
+
+    $builder = $models->table('artikel')->select('artikel.*, kategori.nama_kategori')->join('kategori', 'kategori.id_kategori = artikel.id_kategori');
+
+    if ($q != '') {
+      $builder->like('Artikel.judul', $q);
+    }
+
+    if ($kategori_id != '') {
+      $builder->where('artikel.id_kategori', $kategori_id);
+    }
+
+    $data['artikel'] = $builder->paginate(10);
+    $data['pager'] = $models->pager;
+
+    $kategoriModel = new KategoriModel();
+    $data['kategori'] = $kategoriModel->findAll();
+
     return view('artikel/admin_index', $data);
   }
 
   public function add()
-  {
-    $validation = \Config\Services::validation();
-    $validation->setRules(['judul' => 'required']);
-    $isDataValid = $validation->withRequest($this->request)->run();
-
-    if ($isDataValid) {
-      $file = $this->request->getFile('gambar');
-      $file->move(ROOTPATH . 'public/gambar');
-
-      $artikel = new ArtikelModel();
-      $artikel->insert([
+  { // Validation... 
+    if ($this->request->getMethod() == 'post' && $this->validate([
+      'judul' => 'required',
+      'id_kategori' => 'required|integer' // Ensure id_kategori is 
+    ])) {
+      $model = new ArtikelModel();
+      $model->insert([
         'judul' => $this->request->getPost('judul'),
         'isi' => $this->request->getPost('isi'),
         'slug' => url_title($this->request->getPost('judul')),
-        'gambar' => $file->getName(),
+        'id_kategori' => $this->request->getPost('id_kategori')
       ]);
-      return redirect('admin/artikel');
+      return redirect()->to('/admin/artikel');
+    } else {
+      $kategoriModel = new KategoriModel();
+      $data['kategori'] = $kategoriModel->findAll(); // Fetch categories 
+      $data['title'] = "Tambah Artikel";
+
+      return view('artikel/form_add', $data);
     }
-    $title = "Tambah Artikel";
-    return view('artikel/form_add', compact('title'));
   }
 
   public function edit($id)
   {
-    $artikel = new ArtikelModel();
-
-    $validation = \Config\Services::validation();
-    $validation->setRules(['judul' => 'required']);
-    $isDataValid = $validation->withRequest($this->request)->run();
-    if ($isDataValid) {
-      $artikel->update($id, [
+    $model = new ArtikelModel();
+    if ($this->request->getMethod() == 'post' && $this->validate([
+      'judul' => 'required',
+      'id_kategori' => 'required|integer'
+    ])) {
+      $model->update($id, [
         'judul' => $this->request->getPost('judul'),
         'isi' => $this->request->getPost('isi'),
+        'id_kategori' => $this->request->getPost('id_kategori')
       ]);
-      return redirect('admin/artikel');
+      return redirect()->to('/admin/artikel');
+    } else {
+      $data['artikel'] = $model->find($id);
+      $kategoriModel = new KategoriModel();
+      $data['kategori'] = $kategoriModel->findAll(); // Fetch categories  
+      $data['title'] = "Edit Artikel";
+      return view('artikel/form_edit', $data);
     }
-
-    $data = $artikel->where('id', $id)->first();
-    $title = "Edit Artikel";
-    return view('artikel/form_edit', compact('title', 'data'));
   }
 
   public function getData()

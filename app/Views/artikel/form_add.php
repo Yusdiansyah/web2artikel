@@ -9,6 +9,14 @@
     <textarea cols="50" name="isi" rows="10"></textarea>
   </p>
   <p>
+    <label for="id_kategori">kategori</label>
+    <select name="id_kategori" id="id_kategori" required>
+      <?php foreach ($kategori as $k) : ?>
+        <option value="<?= $k['id_kategori']; ?>"><?= $k['id_kategori']; ?></option>
+      <?php endforeach; ?>
+    </select>
+  </p>
+  <p>
     <input type="file" name="gambar">
   </p>
   <p><input type="submit" value="Kirim" class="btn btn-large" </p>

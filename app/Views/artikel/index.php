@@ -8,6 +8,7 @@
         </a>
 
         </h2>
+        <p>Kategori: <?= $item['nama_kategori'] ?></p>
         <p><?= substr($item['isi'], 0, 100); ?></p>
         <img src="<?= base_url('/gambar/' . $item['gambar']); ?>" alt="<?= $item['judul']; ?>">
     </div>
